@@ -7,7 +7,7 @@
 * Plugin URI:  https://wpsmartpay.com/
 * Description: PayHalal Payment Gateway for Easy Digital Downloads.
 * Tags: edd, edd-payhalal, payhalal
-* Version:     1.3.5
+* Version:     1.0.0
 * Author:      WPSmartPay
 * Author URI:  https://wpsmartpay.com/
 * Text Domain: smartpay-payhalal-edd
@@ -48,6 +48,10 @@ add_action('plugins_loaded', function() {
             define('SMARTPAY_PAYHALAL_EDD_STORE_URL', 'https://wpsmartpay.com');
         }
 
+        add_action('init', function (){
+            edd_debug_log($_POST);
+        });
+        add_action('init', 'process_callback');
         add_action('edd_gateway_payhalal', 'process_payment');
         add_action('edd_payhalal_cc_form', '__return_false');
         add_filter('edd_payment_gateways', 'register_gateway');
@@ -70,7 +74,7 @@ function register_gateway(array $gateways = array()): array
 {
     global $edd_options;
 
-    $checkout_label = $edd_options['smartpay_payhalal_edd_checkout_label'] ?? null;
+    $checkout_label = $edd_options['payhalal_edd_checkout_label'] ?? null;
 
     $gateways['payhalal'] = array(
         'admin_label'    => __('PayHalal', 'smartpay-payhalal-edd'),
@@ -90,6 +94,7 @@ function gateway_section(array $sections = array()): array
 
 function gateway_settings(array $settings): array
 {
+    global $edd_options;
     $gateway_settings = array(
         array(
             'id'    => 'smartpay_payhalal_edd_settings',
@@ -104,15 +109,28 @@ function gateway_settings(array $settings): array
             'type'    => 'checkbox',
         ),
         array(
-            'id'    => 'smartpay_payhalal_edd_public_key',
-            'name'  => __('Public Key', 'smartpay-payhalal-edd'),
-            'desc'  => __('Enter your PayHalal Public Key', 'smartpay-payhalal-edd'),
+            'id'    => 'smartpay_payhalal_test_edd_public_key',
+            'name'  => __('Test Public Key', 'smartpay-payhalal-edd'),
+            'desc'  => __('Enter your test PayHalal Public Key', 'smartpay-payhalal-edd'),
             'type'  => 'text'
         ),
         array(
-            'id'    => 'smartpay_payhalal_edd_secret_key',
-            'name'  => __('Secret', 'smartpay-payhalal-edd'),
-            'desc'  => __('Enter your PayHalal Secret', 'smartpay-payhalal-edd'),
+            'id'    => 'smartpay_payhalal_test_edd_secret_key',
+            'name'  => __('Test Secret', 'smartpay-payhalal-edd'),
+            'desc'  => __('Enter your test PayHalal Secret', 'smartpay-payhalal-edd'),
+            'type'  => 'text'
+        ),
+
+        array(
+            'id'    => 'smartpay_payhalal_live_edd_public_key',
+            'name'  => __('Live Public Key', 'smartpay-payhalal-edd'),
+            'desc'  => __('Enter your live PayHalal Public Key', 'smartpay-payhalal-edd'),
+            'type'  => 'text'
+        ),
+        array(
+            'id'    => 'smartpay_payhalal_live_edd_secret_key',
+            'name'  => __('Live Secret', 'smartpay-payhalal-edd'),
+            'desc'  => __('Enter your live PayHalal Secret', 'smartpay-payhalal-edd'),
             'type'  => 'text'
         ),
 
@@ -140,7 +158,13 @@ function gateway_settings(array $settings): array
             'type'  => 'descriptive_text',
             'name'  => __('URL for Notification (Server to Server)', 'smartpay-payhalal-edd'),
             'desc'  => $paddle_webhook_description_text,
+        ),
 
+        array(
+            'id'    => 'smartpay_payhalal_edd_success_link',
+            'type'  => 'descriptive_text',
+            'name'  => __('EDD success page URL For (URL after Purchase, Return URL, Cancel URL)', 'smartpay-payhalal-edd'),
+            'desc'  => get_permalink($edd_options['success_page']),
         ),
     );
 
@@ -149,18 +173,24 @@ function gateway_settings(array $settings): array
 
 function process_payment(array $purchase_data)
 {
+    $payment = edd_get_payment(76);
+//    var_dump($payment->email);
+//    die();
     global $edd_options;
 
-    $public_key         = $edd_options['smartpay_payhalal_edd_public_key']        ?? null;
-    $secret_key         = $edd_options['smartpay_payhalal_edd_secret_key']        ?? null;
+    $is_test_mode = $edd_options['smartpay_payhalal_edd_enabled_test_mode'] ?? false;
+
+    $public_key         =  $is_test_mode ? $edd_options['smartpay_payhalal_test_edd_public_key'] : $edd_options['smartpay_payhalal_live_edd_public_key'];
+
+    $secret_key         = $is_test_mode ? $edd_options['smartpay_payhalal_test_edd_secret_key'] : $edd_options['smartpay_payhalal_live_edd_secret_key'];
 
     if (empty($public_key) || empty($secret_key)) {
         $log_message  = __('You must enter Public key and Secret for PayHalal in gateway settings.', 'smartpay-payhalal-edd');
-        smartpay_paddle_log($log_message);
         edd_set_error('credential_error', $log_message);
     }
 
     $payment_price = number_format($purchase_data['price'], 2);
+
     $payment_data = array(
         'price'         => $payment_price,
         'date'          => $purchase_data['date'],
@@ -189,38 +219,68 @@ function process_payment(array $purchase_data)
 
         edd_empty_cart();
 
-    }
+        $values = array();
+        // Fill all values with sample data below
+        $values["app_id"] = $public_key;
+        $values["amount"] = smartpay_payhalal_remove_thousand_seperator($payment_price);
+        $values["currency"] = "MYR";
+        $values["product_description"] = $title;
+        $values["order_id"] = $payment_id;
+        $values["customer_email"] = $purchase_data['user_email'];
+        $values["language"] = "en";
+        $values["hash"] = ph_sha256($values,$secret_key);
 
-    function ph_sha256( $data, $secret ) {
-        $hash =
-            hash('sha256',$secret.$data["amount"].$data["currency"].$data["product_description"]
-                .$data["order_id"].
-                $data["customer_name"].$data["customer_email"].$data["customer_phone"]);
-        return $hash;
-    }
+        $form_url = 'https://api-testing.payhalal.my/pay';
 
+        echo '<form id="payhalal" method="post" action="' . $form_url . '" >';
+        foreach ($values as $key => $value) {
+            echo '<input type="hidden" name="' . $key . '" value="' . $value . '" >';
+        }
+        echo '<center>
+							<button type="submit">Please click here if you are not redirected within a few seconds</button>
+							</center>';
+        echo '</form>';
+
+        echo '<script type="text/javascript">';
+        echo '  document.getElementById("payhalal").submit();';
+        echo '</script>';
+    }
 }
 
-// App Key need to be secret, don't publish it online
-//$ph_app_secret =
-//    'secret-testing-5e2c0c2222d0a9dc032ced3f0482e5d3';
-//$values = array();
-//// Fill all values with sample data below
-//$values["app_id"] =
-//    "app-testing-78488f676f34dc5a39886219e0469f7e";
-//$values["amount"] = 99.99;
-//$values["currency"] = "MYR";
-//$values["product_description"] = "My Product";
-//$values["order_id"] = "2000";
-//$values["customer_name"] = "Tom";
-//$values["customer_email"] = "dev@mysite.my";
-//$values["customer_phone"] = "65376254";
-//$values["language"] = "en";
-//$values["hash"] = ph_sha256($values,$ph_app_secret);
-//?>
-<!--<form name="phPayment" method="post" action="https://api-testing.payhalal.my/pay">-->
-<!--    --><?php //foreach ($values as $name => $value) { ?>
-<!--        <input type="hidden" name="--><?//=$name;?><!--" value="--><?//=$value;?><!--"/>-->
-<!--    --><?php //} ?>
-<!--    <input type="Submit" name="Submit" value="Pay with PayHalal"/>-->
-<!--</form>-->
+function ph_sha256( $data, $secret ) {
+    $hash =
+        hash('sha256',$secret.$data["amount"].$data["currency"].$data["product_description"]
+            .$data["order_id"].
+            $data["customer_name"].$data["customer_email"].$data["customer_phone"]);
+    return $hash;
+}
+
+function smartpay_payhalal_remove_thousand_seperator(String $amount)
+{
+    $amount = str_replace(edd_get_option('thousands_separator', ','), '', $amount);
+
+    $decimal_separator = edd_get_option('decimal_separator', '.');
+
+    if ('.' != $decimal_separator) {
+        $amount = str_replace($decimal_separator, '.', $amount);
+    }
+
+    return $amount;
+}
+
+function process_callback()
+{
+    if (isset($_GET['edd-listener']) && $_GET['edd-listener'] == 'payhalal') {
+        $payment = edd_get_payment($_POST['order_id']);
+        edd_debug_log($_POST);
+
+        if ($_POST["status"] == "SUCCESS") {
+            // Remove car
+            $payment->update_status('publish');
+        } elseif ($_POST["status"] == "FAIL") {
+            $payment->update_status('failed');
+        }
+    } else {
+        edd_add_note('Connection Error. Please Try Again');
+    }
+}
