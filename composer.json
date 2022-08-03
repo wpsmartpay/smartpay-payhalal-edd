@@ -1,0 +1,24 @@
+{
+    "name": "wpsmartpay/smartpay-payhalal-edd",
+    "description": "Payhalal payment gateway integration for Easy Digital Downloads",
+    "type": "wordpress-plugin",
+    "require": {
+        "php": "7.4|^8.0"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "SmartPayPayhalalEdd\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Atiqur Rahman",
+            "email": "atiq.misterrahman@gmail.com.com"
+        },
+        {
+            "name": "WPSmartPay",
+            "email": "wpsmartpay@themexpert.com"
+        }
+    ]
+}
