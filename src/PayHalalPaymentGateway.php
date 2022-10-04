@@ -174,7 +174,7 @@ class PayHalalPaymentGateway {
             echo '</form>';
 
             echo '<script type="text/javascript">';
-            echo '  document.getElementById("payhalal").submit();';
+            echo 'document.getElementById("payhalal").submit();';
             echo '</script>';
         }
     }
