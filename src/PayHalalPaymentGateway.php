@@ -36,6 +36,7 @@ class PayHalalPaymentGateway {
         add_action('edd_gateway_smartpay_payhalal', [$this, 'process_payment']);
         add_action('edd_smartpay_payhalal_cc_form', '__return_false');
         add_filter('edd_payment_gateways', [$this, 'register_gateway']);
+	    add_filter('edd_accepted_payment_icons', [$this, 'payment_icon']);
         add_filter('edd_settings_sections_gateways', [$this, 'gateway_section'], 9, 1);
         add_filter('edd_settings_gateways', [$this, 'gateway_settings']);
     }
@@ -198,6 +199,24 @@ class PayHalalPaymentGateway {
 
         return $gateways;
     }
+
+	/**
+	 * Register the gateway icon
+	 *
+	 * @since 1.1.1
+	 * @param array $icons
+	 * @return array
+	 * @access public
+	 */
+	public function payment_icon(array $icons = array()): array
+	{
+		global $edd_options;
+
+		$checkout_icon = $edd_options['smartpay_payhalal_checkout_icon'] ?? plugins_url('', SMARTPAY_PAYHALAL_EDD_PLUGIN_FILE) . '/assets/images/payhalal-logo.png';
+
+		$icons[$checkout_icon] = __('PayHalal', 'smartpay-payhalal-edd');
+		return $icons;
+	}
 
     /**
      * add gateway to the Payment gateway sections
