@@ -9,7 +9,10 @@
     "autoload": {
         "psr-4": {
             "SmartPayPayhalalEdd\\": "src/"
-        }
+        },
+        "files": [
+            "src/Includes/common.php"
+        ]
     },
     "authors": [
         {
