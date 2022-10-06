@@ -9,7 +9,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 == Description ==
-PayHalal Malaysian Payment Gateway for Easy Digital Downloads. This plugin allows you to accept payments via PayHalal. You can use this plugin to accept payments from your customers through PayHalal.
+PayHalal Malaysian Payment Gateway for Easy Digital Downloads. This plugin allows you to accept payments via PayHalal. You can use this plugin to accept payments from your customers through PayHalal. Currently, this plugin only supports One Time Payments.
 
 == Installation ==
 1. Upload the plugin files to the `/wp-content/plugins/smartpay-payhalal-edd` directory, or install the plugin through
