@@ -19,7 +19,8 @@ the WordPress plugins screen directly.
 4. That's it. Now you can accept payments via PayHalal.
 
 
-Please follow the [documentation](https://wpsmartpay.com/docs/payhalal-for-wordpress-plugins/payhalal-for-easy-digital-downloads) to set up the plugin properly.
+Please follow the below link to set up the plugin properly.
+[Documentation - https://wpsmartpay.com/docs/payhalal-for-wordpress-plugins/payhalal-for-easy-digital-downloads]
 
 == Changelog ==
 = 1.0.0 - Oct 04, 2022 =
