@@ -8,8 +8,37 @@ class PayHalalPaymentGateway {
      */
     private static $instance = null;
 
+	private bool $isTestMode = false;
+
+	private $publicKey = '';
+
+	private $secret = '';
+
     public function __construct()
     {
+	    if (!function_exists('edd_is_gateway_active')) {
+		    return;
+	    }
+
+	    if (!$this->_checkApiKeys()) {
+		    // add credentials error notice
+		    add_action('admin_notices', function () {
+			    echo __(sprintf(
+				    '<div class="error">
+                        <p><strong>PayHalal API key was not set or found yet!</strong> To get the PayHalal services on EDD, you must put your api key  <a href="%s"> Input your API key</a> or <a href="%s" target="_blank">Get your API key here</a></p>
+                    </div>',
+				    admin_url('edit.php?post_type=download&page=edd-settings&tab=gateways&section=smartpay_payhalal'),
+				    'https://payhalal.my/merchant/developer'
+			    ), 'smartpay-pro');
+		    });
+	    }
+
+	    if (!is_payhalal_currency_supported()) {
+		    smartpay_payhalal_log(__('SmartPay-PayHalal: Construct gateway; Your currency does not supported by Paddle.', 'wp-smartpay-edd'));
+
+		    return;
+	    }
+
         $this->init_actions();
     }
 
@@ -90,10 +119,23 @@ class PayHalalPaymentGateway {
             if ($_POST["status"] == "SUCCESS") {
                 // Remove car
                 $payment->update_status('publish');
+				// add debug log
+	            $log_message = __(sprintf(
+		            'SmartPay-PayHalal: Payment #%s. Success.',
+		            $payment->ID
+	            ), 'smartpay-payhalal-edd');
+	            smartpay_payhalal_log($log_message);
             } elseif ($_POST["status"] == "FAIL") {
                 $payment->update_status('failed');
+	            $log_message = __(sprintf(
+		            'SmartPay-PayHalal: Payment #%s. Failed.',
+		            $payment->ID
+	            ), 'smartpay-payhalal-edd');
+	            smartpay_payhalal_log($log_message);
             }
         } else {
+	        $log_message = __( 'SmartPay-PayHalal: Connection Error. Callback was not success.', 'smartpay-payhalal-edd');
+	        smartpay_payhalal_log($log_message);
             edd_add_note('Connection Error. Please Try Again');
         }
     }
@@ -105,23 +147,12 @@ class PayHalalPaymentGateway {
      */
     public function process_payment(array $purchase_data)
     {
-        global $edd_options;
-
-        $is_test_mode = $edd_options['smartpay_payhalal_edd_enabled_test_mode'] ?? false;
-
-        $public_key         =  $is_test_mode ? $edd_options['smartpay_payhalal_test_edd_public_key'] : $edd_options['smartpay_payhalal_live_edd_public_key'];
-
-        $secret_key         = $is_test_mode ? $edd_options['smartpay_payhalal_test_edd_secret_key'] : $edd_options['smartpay_payhalal_live_edd_secret_key'];
-
-        if (empty($public_key) || empty($secret_key)) {
-            $log_message  = __('You must enter Public key and Secret for PayHalal in gateway settings.', 'smartpay-payhalal-edd');
-            edd_set_error('credential_error', $log_message);
-        }
 
         $payment_price = number_format($purchase_data['price'], 2);
 
         $payment_data = array(
             'price'         => $payment_price,
+	        'customer_name'   => $purchase_data['user_info']['first_name'] . ' ' . $purchase_data['user_info']['last_name'],
             'date'          => $purchase_data['date'],
             'user_email'    => $purchase_data['user_email'],
             'purchase_key'  => $purchase_data['purchase_key'],
@@ -152,18 +183,18 @@ class PayHalalPaymentGateway {
 
             $values = array();
             // Fill all values with sample data below
-            $values["app_id"] = $public_key;
+            $values["app_id"] = $this->publicKey;
             $values["amount"] = $this->smartpay_payhalal_remove_thousand_seperator($payment_price);
-            $values["currency"] = "MYR";
+            $values["currency"] = edd_get_currency();
             $values["product_description"] = $title;
             $values["order_id"] = $payment_id;
             $values["customer_name"] = $customer_name;
             $values["customer_email"] = $purchase_data['user_email'];
             $values["language"] = "en";
-            $values["hash"] = $this->ph_sha256($values,$secret_key);
+            $values["hash"] = $this->ph_sha256($values,$this->secret);
 
             // srt up the url for form submit
-            $payment_url = $is_test_mode ? 'https://api-testing.payhalal.my/pay' : 'https://api.payhalal.my/pay';
+            $payment_url = $this->isTestMode ? 'https://api-testing.payhalal.my/pay' : 'https://api.payhalal.my/pay';
 
             echo '<form id="payhalal" method="post" action="' . $payment_url . '" >';
             foreach ($values as $key => $value) {
@@ -313,5 +344,30 @@ class PayHalalPaymentGateway {
 
         return array_merge($settings, ['smartpay_payhalal' => $gateway_settings]);
     }
+
+	private function _checkApiKeys()
+	{
+		global $edd_options;
+
+		$is_test_mode = $edd_options['smartpay_payhalal_edd_enabled_test_mode'] ?? false;
+
+		if ($is_test_mode) {
+			$this->isTestMode = true;
+		}
+
+		$public_key         =  $is_test_mode ? $edd_options['smartpay_payhalal_test_edd_public_key'] : $edd_options['smartpay_payhalal_live_edd_public_key'];
+
+		$secret_key         = $is_test_mode ? $edd_options['smartpay_payhalal_test_edd_secret_key'] : $edd_options['smartpay_payhalal_live_edd_secret_key'];
+
+		if (empty($public_key) || empty($secret_key)) {
+			$log_message  = __('You must enter Public key and Secret for PayHalal in gateway settings.', 'smartpay-payhalal-edd');
+			edd_set_error('credential_error', $log_message);
+			return false;
+		} else {
+			$this->publicKey = $public_key;
+			$this->secret = $secret_key;
+			return true;
+		}
+	}
 
 }
