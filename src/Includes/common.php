@@ -34,7 +34,7 @@ function smartpay_payhalal_unsupported_currency_notice(): void {
  *
  * @return void
  */
-function smartpay_payhalal_log($message, bool $print = false): void {
+function smartpay_payhalal_edd_log($message, bool $print = false): void {
 	global $edd_options;
 
 	$message = is_array($message) || is_object($message) ? print_r($message) : $message;

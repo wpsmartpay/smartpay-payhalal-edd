@@ -34,7 +34,7 @@ class PayHalalPaymentGateway {
 		}
 
 		if (!is_payhalal_currency_supported()) {
-			smartpay_payhalal_log(__('SmartPay-PayHalal: Construct gateway; Your currency does not supported by Paddle.', 'wp-smartpay-edd'));
+			smartpay_payhalal_edd_log(__('SmartPay-PayHalal: Construct gateway; Your currency does not supported by Paddle.', 'wp-smartpay-edd'));
 
 			return;
 		}
@@ -124,18 +124,18 @@ class PayHalalPaymentGateway {
 					'SmartPay-PayHalal: Payment #%s. Success.',
 					$payment->ID
 				), 'smartpay-payhalal-edd');
-				smartpay_payhalal_log($log_message);
+				smartpay_payhalal_edd_log($log_message);
 			} elseif ($_POST["status"] == "FAIL") {
 				$payment->update_status('failed');
 				$log_message = __(sprintf(
 					'SmartPay-PayHalal: Payment #%s. Failed.',
 					$payment->ID
 				), 'smartpay-payhalal-edd');
-				smartpay_payhalal_log($log_message);
+				smartpay_payhalal_edd_log($log_message);
 			}
 		} else {
 			$log_message = __( 'SmartPay-PayHalal: Connection Error. Callback was not success.', 'smartpay-payhalal-edd');
-			smartpay_payhalal_log($log_message);
+			smartpay_payhalal_edd_log($log_message);
 			edd_add_note('Connection Error. Please Try Again');
 		}
 	}
@@ -360,9 +360,9 @@ class PayHalalPaymentGateway {
 			$this->isTestMode = true;
 		}
 
-		$public_key         =  $is_test_mode ? $edd_options['smartpay_payhalal_test_edd_public_key'] : $edd_options['smartpay_payhalal_live_edd_public_key'];
+		$public_key         =  $is_test_mode ? $edd_options['smartpay_payhalal_test_edd_public_key'] : $edd_options['smartpay_payhalal_live_edd_public_key'] ?? null;
 
-		$secret_key         = $is_test_mode ? $edd_options['smartpay_payhalal_test_edd_secret_key'] : $edd_options['smartpay_payhalal_live_edd_secret_key'];
+		$secret_key         = $is_test_mode ? $edd_options['smartpay_payhalal_test_edd_secret_key'] : $edd_options['smartpay_payhalal_live_edd_secret_key'] ?? null;
 
 		if (empty($public_key) || empty($secret_key)) {
 			$log_message  = __('You must enter Public key and Secret for PayHalal in gateway settings.', 'smartpay-payhalal-edd');
